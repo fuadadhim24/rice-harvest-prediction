@@ -68,6 +68,10 @@ random_search_rf = RandomizedSearchCV(
 random_search_rf.fit(X_train, y_train)
 best_model_rf = random_search_rf.best_estimator_
 
+print("Hyperparameter Terbaik Random Forest:")
+for param, val in random_search_rf.best_params_.items():
+    print(f"{param}: {val}")
+
 # Save model
 with open("best_model_rf.pkl", "wb") as f:
     pickle.dump(best_model_rf, f)
