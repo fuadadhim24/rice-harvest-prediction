@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import os
-import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -13,10 +12,13 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from xgboost import XGBRegressor
+import joblib
 
 # === Setup ===
 os.makedirs("visualizations/xg_boost", exist_ok=True)
 os.makedirs("result/xg_boost", exist_ok=True)
+os.makedirs("model/xg_boost", exist_ok=True)
+
 
 # Load data
 df = pd.read_csv("Smart_Farming_Crop_Yield_2024.csv")
@@ -127,31 +129,35 @@ for crop in df["crop_type"].unique():
 
     # Hyperparameter tuning
     param_grid = {
-        "regressor__n_estimators": [100, 200, 300, 500],
-        "regressor__max_depth": [3, 5, 7, 10],
-        "regressor__learning_rate": [0.01, 0.05, 0.1, 0.2],
-        "regressor__subsample": [0.6, 0.8, 1.0],
-        "regressor__colsample_bytree": [0.6, 0.8, 1.0],
-    }
+    "regressor__n_estimators": [100, 200, 300, 500],
+    "regressor__learning_rate": [0.01, 0.05, 0.1, 0.2],
+    "regressor__max_depth": [3, 5, 7, 10],
+    "regressor__subsample": [0.6, 0.8, 1.0],
+    "regressor__colsample_bytree": [0.6, 0.8, 1.0],
+    "regressor__gamma": [0, 1, 5],
+    "regressor__min_child_weight": [1, 3, 5]
+}
 
 
+ # Set up RandomizedSearchCV
     random_search = RandomizedSearchCV(
-        pipeline,
+        estimator=pipeline,
         param_distributions=param_grid,
-        n_iter=200,
+        n_iter=50,
         cv=5,
-        scoring="neg_mean_squared_error",
-        verbose=1,
+        scoring="neg_mean_squared_error", 
+        verbose=2,
         random_state=42,
         n_jobs=-1
     )
+
 
     random_search.fit(X_train, y_train)
     best_model = random_search.best_estimator_
     
     # Save model
-    with open(f"model/random_forest/best_model_rf_{crop}.pkl", "wb") as f:
-        pickle.dump(best_model, f)
+    joblib.dump(best_model, f"model/xg_boost/model_{crop}.pkl")
+
         
     y_pred = best_model.predict(X_test)
 
@@ -207,7 +213,7 @@ importances_df = pd.DataFrame({
 
 plt.figure(figsize=(10, 6))
 sns.barplot(x="Importance", y="Feature", data=importances_df, palette="viridis")
-plt.title("Top 20 Feature Importance dari Random Forest")
+plt.title("Top 20 Feature Importance dari XGBoost")
 plt.tight_layout()
 plt.savefig("visualizations/xg_boost/feature_importance.png")
 plt.close()

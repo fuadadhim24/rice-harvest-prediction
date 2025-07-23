@@ -197,4 +197,4 @@ sample_encoded = preprocessor.fit_transform(df[num_features + cat_features].iloc
 encoded_df = pd.DataFrame(sample_encoded)
 encoded_df.to_csv("visualizations/random_forest/sample_encoded.csv", index=False)
 
-print("\nPipeline dan visualisasi selesai. Semua hasil disimpan ke folder 'visualizations/random_forest'")
+print("\nPipeline dan visualisasi selesai. Semua hasil disimpan ke folder 'visualizations/random_forest' dan result disimpan ke 'result/random_forest/evaluasi_crop_type_random_forest.csv'.")
