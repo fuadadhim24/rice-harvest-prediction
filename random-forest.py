@@ -3,80 +3,97 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import (
-    mean_absolute_error, mean_squared_error, r2_score
-)
 import pickle
 
-# === Step 1: Load Dataset ===
+# Load the dataset
 df = pd.read_csv("Smart_Farming_Crop_Yield_2024.csv")
 
-# === Step 2: Feature Engineering ===
-df["temp_rain_ratio"] = df["temperature_C"] / (df["rainfall_mm"] + 1)
-df["moisture_index"] = df["soil_moisture_%"] * df["humidity_%"] / 100
-
-# === Step 3: Pilih Fitur Penting + Kategorikal ===
-numeric_features = [
-    "soil_moisture_%", "pesticide_usage_ml", "rainfall_mm",
-    "temperature_C", "sunlight_hours", "humidity_%",
-    "temp_rain_ratio", "moisture_index"
+# List of numerical and categorical features
+num_features = [
+    "soil_moisture_%", "soil_pH", "temperature_C",
+    "rainfall_mm", "humidity_%", "sunlight_hours",
+    "pesticide_usage_ml", "NDVI_index", "total_days"
 ]
 
-categorical_features = ["crop_type", "region", "fertilizer_type"]
-df_encoded = pd.get_dummies(df[categorical_features], drop_first=True)
+cat_features = [
+    "region", "crop_type", "irrigation_type",
+    "fertilizer_type", "crop_disease_status"
+]
 
-# Gabungkan semua fitur
-X = pd.concat([df[numeric_features], df_encoded], axis=1)
+# Fill missing categorical data with "Unknown"
+df[cat_features] = df[cat_features].fillna("Unknown")
+
+# Prepare features (X) and target (y)
+X = df[num_features + cat_features]
 y = df["yield_kg_per_hectare"]
 
-# === Step 4: Train-Test Split ===
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+# Log transform the target variable (if needed)
+# y = np.log1p(y)  # Uncomment this line if you want to apply log transformation
 
-# === Step 5: Model Training ===
-model = RandomForestRegressor(
-    # n_estimators=150,
-    # max_depth=10,
-    # random_state=42
-     n_estimators=300,
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Preprocessing pipeline
+preprocessor = ColumnTransformer(transformers=[
+    ("num", StandardScaler(), num_features),
+    ("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)
+])
+
+# Define the Random Forest pipeline
+pipeline_rf = Pipeline(steps=[
+    ("preprocessor", preprocessor),
+    ("regressor", RandomForestRegressor(random_state=42))
+])
+
+# Hyperparameter grid for RandomizedSearchCV
+param_grid_rf = {
+    "regressor__n_estimators": [100, 200, 300],
+    "regressor__max_depth": [3, 5, 7, 9],
+    "regressor__min_samples_split": [2, 5, 10],
+    "regressor__min_samples_leaf": [1, 2, 4],
+}
+
+# Set up RandomizedSearchCV for Random Forest
+random_search_rf = RandomizedSearchCV(
+    pipeline_rf,
+    param_distributions=param_grid_rf,
+    n_iter=50,
+    cv=5,
+    scoring="neg_mean_squared_error",
+    verbose=1,
     random_state=42,
-    n_jobs=-1  # biar cepat
+    n_jobs=-1
 )
-model.fit(X_train, y_train)
 
-# === Step 6: Evaluasi ===
-preds = model.predict(X_test)
+# Fit the Random Forest model
+random_search_rf.fit(X_train, y_train)
 
-mae = mean_absolute_error(y_test, preds)
-mse = mean_squared_error(y_test, preds)
-rmse = np.sqrt(mse)
-r2 = r2_score(y_test, preds)
+# Best model and parameters
+best_model_rf = random_search_rf.best_estimator_
+print("🎯 Best params for Random Forest:", random_search_rf.best_params_)
 
-print("📊 Evaluasi Model (Hybrid Features):")
-print(f"MAE : {mae}")
-print(f"MSE : {mse}")
-print(f"RMSE: {rmse}")
-print(f"R² Score: {r2}")
+# Predictions on the test set
+preds_rf = best_model_rf.predict(X_test)
 
-# === Step 7: Simpan Model ===
-with open("model-rf-hybrid.pkl", "wb") as f:
-    pickle.dump(model, f)
+# Evaluation metrics
+mae_rf = mean_absolute_error(y_test, preds_rf)
+mse_rf = mean_squared_error(y_test, preds_rf)
+rmse_rf = np.sqrt(mse_rf)
+r2_rf = r2_score(y_test, preds_rf)
 
-print("✅ Model berhasil disimpan sebagai model-rf-hybrid.pkl")
+# Print evaluation results for Random Forest
+print("\n📊 Evaluasi Model Random Forest:")
+print(f"MAE : {mae_rf:.2f}")
+print(f"RMSE: {rmse_rf:.2f}")
+print(f"R²   : {r2_rf:.4f}")
 
-# === Optional: Visualisasi Feature Importance ===
-importances = model.feature_importances_
-feature_names = X.columns
-feat_imp_df = pd.DataFrame({
-    "Feature": feature_names,
-    "Importance": importances
-}).sort_values(by="Importance", ascending=False)
-
-plt.figure(figsize=(10, 6))
-sns.barplot(data=feat_imp_df.head(15), y="Feature", x="Importance", palette="viridis")
-plt.title("🔥 Feature Importance - Hybrid Model")
-plt.tight_layout()
-plt.show()
+# Optional: Save the best model
+# with open("model-random-forest-tuned.pkl", "wb") as f:
+#     pickle.dump(best_model_rf, f)
+# print("✅ Model disimpan sebagai model-random-forest-tuned.pkl")
