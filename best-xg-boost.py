@@ -129,27 +129,29 @@ for crop in df["crop_type"].unique():
 
     # Hyperparameter tuning
     param_grid = {
-    "regressor__n_estimators": [100, 200, 300, 500],
-    "regressor__learning_rate": [0.01, 0.05, 0.1, 0.2],
-    "regressor__max_depth": [3, 5, 7, 10],
-    "regressor__subsample": [0.6, 0.8, 1.0],
-    "regressor__colsample_bytree": [0.6, 0.8, 1.0],
-    "regressor__gamma": [0, 1, 5],
-    "regressor__min_child_weight": [1, 3, 5]
-}
+        "regressor__n_estimators": [100, 200, 300, 500],
+        "regressor__learning_rate": [0.01, 0.05, 0.1, 0.2],
+        "regressor__max_depth": [3, 5, 7, 10],
+        "regressor__subsample": [0.6, 0.8, 1.0],
+        "regressor__colsample_bytree": [0.6, 0.8, 1.0],
+        "regressor__gamma": [0, 1, 5],
+        "regressor__min_child_weight": [1, 3, 5]
+    }
 
 
- # Set up RandomizedSearchCV
+
+    # Set up RandomizedSearchCV
     random_search = RandomizedSearchCV(
         estimator=pipeline,
         param_distributions=param_grid,
         n_iter=50,
+        scoring="neg_mean_squared_error",
         cv=5,
-        scoring="neg_mean_squared_error", 
         verbose=2,
         random_state=42,
         n_jobs=-1
     )
+
 
 
     random_search.fit(X_train, y_train)
