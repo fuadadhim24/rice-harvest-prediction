@@ -2,5 +2,6 @@ result/random_forest/*
 result/xg_boost/*
 visualizations/random_forest/*
 visualizations/xg_boost/*
+visualizations/all_model/*
 model/random_forest/*
 model/xg_boost/*
